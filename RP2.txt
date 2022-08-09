@@ -1,0 +1,403 @@
+select
+    abc_table1.patid 																																		as mbasid,
+	substr(patname, 1, (instr(patname,' ',1,1) -1)) 																										as last_name,
+	substr(patname, (instr(patname,' ',-1,1) +1), length(patname)) 																							as first_name,	
+	substr(patname, (instr(patname,' ',1,1) +1), (instr(patname,' ',-1,1) - instr(patname,' ',1,1) -1))  													as middle_name,
+    abc_table1.caseno 																																		as claimid,
+    null 																																					as loadrefno,
+	casedetail.servicedatein,
+	casedetail.servicedateout,
+    casediagnosis.icdcode,
+	casediagnosis.diagnosis,
+	null 																																					as CPTcode,
+	case when casedetail.servicedatein = casedetail.servicedateout then 'OP' else 'IN' end 																	as patienttype,
+	'PC' 																																					as claimtype,
+	trunc (notifydate) 																																		as datereceived,
+	null 																																					as invoicedate,
+	null 																																					as invoicenumber,
+	'Vietnam Dong' 																																			as invoicecurr,
+	null 																																					as invoiceamt,
+	ty_gia.ty_gia_USD 																																		as exchangerate,
+	case when claim.agreeamt <> claim.payableamt then claim.payableamt * ty_gia_EUR else abc_table1.payordueamt end											as usedamtloc,
+	round (claim.payableamt * ty_le,2) 																														as usedamtUSD,
+	null 																																					as adminfeeloc, 
+	null 																																					as adminfeeUSD, 
+	null 																																					as servicetaxloc, 
+	null 																																					as servicetaxUSD, 
+	null 																																					as servicefeeloc, 
+	null 																																					as servicefeeUSD, 
+	providercode 																																			as approvalcode,
+	nvl (substr(mpname.name, 0, instr(mpname.name, ' - ')-1), mpname.name) 																					as hospital_name,
+	abc_table1.caseno 																																		as providerclaimno,
+	'TPA' 																																					as providername,
+	0 																																						as nationalhealthcoverage,
+	abc_table1.caseno || '.pdf' 																															as fileattachment,
+	'No' 																																					as consent,
+	0 																																						as professionalfee, 
+	round (surgeonsfee.surgeonsfee/claim.agreeamt * claim.payableamt * ty_le,2) 																			as surgeonsfee_USD,
+	0 																																						as optical, 
+	0 																																						as dental, 
+	0 																																						as xrayandradiology, 
+	round (chemotherapy.chemotherapy/claim.agreeamt * claim.payableamt * ty_le,2) 																			as chemotherapy_USD,
+	round (roomandboard.roomandboard/claim.agreeamt * claim.payableamt * ty_le,2) 																			as roomandboard_USD,
+	round (laboratory.laboratory/claim.agreeamt * claim.payableamt * ty_le,2) 																				as laboratory_USD,
+	round (consultation.consultation/claim.agreeamt * claim.payableamt * ty_le,2) 																			as consultation_USD,
+	round (diagnosticstests.diagnosticstests/claim.agreeamt * claim.payableamt * ty_le,2) 																	as diagnosticstests_USD,
+	round (medicalandsurgicalsupplies.medicalandsurgicalsupplies/claim.agreeamt * claim.payableamt * ty_le,2) 												as medicalandsurgicalsupplies_USD,
+	round (pharmacy.pharmacy/claim.agreeamt * claim.payableamt * ty_le,2) 																					as pharmacy_USD,
+	round (ape.ape/claim.agreeamt * claim.payableamt * ty_le,2) 																							as ape_USD,
+	round (physicaltherapy.physicaltherapy/claim.agreeamt * claim.payableamt * ty_le,2) 																	as physicaltherapy_USD,
+	round (speechtherapy.speechtherapy/claim.agreeamt * claim.payableamt * ty_le,2) 																		as speechtherapy_USD,
+	0 																																						as occupationaltherapy,
+	round (relatedcharges.relatedcharges/claim.agreeamt * claim.payableamt * ty_le,2) 																		as relatedcharges_USD,
+	0 																																						as operatingroom, 
+	to_char (fnlinvrcvdt, 'dd/mm/yyyy hh24:mm') 																											as GL_final_invoice_date,
+	payment.payment_date
+	
+from
+	abc_table1
+	
+left join
+(
+	select
+		caseno,
+		trunc (admissiondate) 																																as servicedatein,
+		trunc (dischargedate) 																																as servicedateout
+    from
+        abcabc_table2
+	) casedetail
+on
+	abc_table1.caseno = casedetail.caseno
+
+left join
+(
+	select
+		icd.caseno,
+		icd.diagnosiscode 																																	as icdcode,
+		name 																																				as diagnosis
+	from
+		abc_table3 icd
+	
+	inner join
+	(
+		select
+			caseno,
+			min(diagid) 																																	as icdid
+		from
+			abc_table3
+		group by
+			caseno
+		) mainicd
+	on
+			icd.caseno = mainicd.caseno
+		and icd.diagid = mainicd.icdid
+		
+	left join
+		abc_table4
+	on
+		icd.diagnosiscode = abc_table4.diagnosiscode
+	) casediagnosis
+on
+    abc_table1.caseno = casediagnosis.caseno
+
+left join
+	abc_table5 mpname
+on
+	providercode = mpname.clientcode
+
+left join
+(
+	select 
+		caseno,
+		coborder,
+		incuramt,
+		agreeamt,
+		payableamt
+	from
+		abc_table6
+	where
+		claimstatus = 'A'
+	) claim
+on
+	abc_table1.caseno = claim.caseno
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode in ('SPGC', 'DCSG', 'OPSG') then grossamt else 0 end) 																	as surgeonsfee  
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) surgeonsfee
+on
+		claim.caseno = surgeonsfee.caseno
+	and claim.coborder = surgeonsfee.coborder
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'HT' then grossamt else 0 end) 																						as  chemotherapy 
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) chemotherapy
+on
+		claim.caseno = chemotherapy.caseno
+	and claim.coborder = chemotherapy.coborder
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'RMBD' then grossamt else 0 end) 																						as   roomandboard 
+ 
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) roomandboard
+on
+		claim.caseno = roomandboard.caseno
+	and claim.coborder = roomandboard.coborder
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode in ('XNM', 'LABD') then grossamt else 0 end) 																			as laboratory  
+ 
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) laboratory
+on
+		claim.caseno = laboratory.caseno
+	and claim.coborder = laboratory.coborder
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'OPDT' then grossamt else 0 end) 																						as consultation
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) consultation
+on
+		claim.caseno = consultation.caseno
+	and claim.coborder = consultation.coborder
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'CDDTM' then grossamt else 0 end) 																						as  diagnosticstests 
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) diagnosticstests
+on
+		claim.caseno = diagnosticstests.caseno
+	and claim.coborder = diagnosticstests.coborder	
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'MEEQ' then grossamt else 0 end) 																						as medicalandsurgicalsupplies  
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) medicalandsurgicalsupplies
+on
+		claim.caseno = medicalandsurgicalsupplies.caseno
+	and claim.coborder = medicalandsurgicalsupplies.coborder
+
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'MEDI' then grossamt else 0 end) 																						as pharmacy   
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) pharmacy
+on
+		claim.caseno = pharmacy.caseno
+	and claim.coborder = pharmacy.coborder	
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'MEDCU' then grossamt else 0 end) 																						as ape
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) ape
+on
+		claim.caseno = ape.caseno
+	and claim.coborder = ape.coborder	
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'PTRX' then grossamt else 0 end) 																						as  physicaltherapy 
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) physicaltherapy
+on
+		claim.caseno = physicaltherapy.caseno
+	and claim.coborder = physicaltherapy.coborder
+	
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode = 'TLNN' then grossamt else 0 end) 																						as  speechtherapy  
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) speechtherapy
+on
+		claim.caseno = speechtherapy.caseno
+	and claim.coborder = speechtherapy.coborder
+
+left join
+(	
+	select 
+		caseno,
+		coborder,
+		sum (case when benefitcode not in 
+											(	'SPGC', 'DCSG', 'OPSG', 'HT', 'RMBD', 'XNM', 'LABD', 
+												'OPDT', 'CDDTM', 'MEEQ', 'MEDI', 'MEDCU', 'PTRX', 'TLNN') 
+										then grossamt else 0 end) 																							as relatedcharges
+	from 
+		abc_table7 
+	group by 
+		caseno,
+        coborder
+	) relatedcharges
+on
+		claim.caseno = relatedcharges.caseno
+	and claim.coborder = relatedcharges.coborder
+
+left join
+(
+	select
+		caseno,
+		ty_gia_EUR,
+		ty_gia_USD,
+		ty_gia_EUR/ty_gia_USD 																																as ty_le
+	from
+	(
+		select
+			caseno,
+			pyrcontractno,
+			case when instr(billingnote, 'EU') > 0 then
+			replace (regexp_substr (regexp_substr (substr (billingnote, instr(billingnote, 'EU')), 
+							'([0-9]+(,[0-9]+)+)\.[0-9]+/|([0-9]+(,[0-9]+)+)/|[0-9]+,[0-9]+[a-zA-Z]|[0-9]+,[0-9]*\.[0-9]+[a-zA-Z]|[0-9]+,[0-9]+\s|[0-9]+,[0-9]+\.[0-9]+\s|[0-9]+,[0-9]*\.[0-9]+'), 
+							'([0-9]+(,[0-9]+)+)\.[0-9]|([0-9]+(,[0-9]+)+)|[0-9]+,[0-9]|[0-9]+,[0-9]*\.[0-9]|[0-9]+,[0-9]+|[0-9]+,[0-9]+\.[0-9]+|[0-9]+,[0-9]*\.[0-9]+'), ',', '') 
+            else null end 																																	as ty_gia_EUR,
+            case when instr(billingnote, 'US') > 0 then
+			replace (regexp_substr (regexp_substr (substr (billingnote, instr(billingnote, 'US')), 
+							'([0-9]+(,[0-9]+)+)\.[0-9]+\s|[0-9]+,[0-9]+[a-zA-Z]|[0-9]+,[0-9]+\s|([0-9]+(,[0-9]+)+)'), 
+							'([0-9]+(,[0-9]+)+)\.[0-9]|[0-9]+,[0-9]+|[0-9]+,[0-9]+|([0-9]+(,[0-9]+)+)'), ',', '') 
+            else null end 																																	as ty_gia_USD
+		from
+			abc_table1
+		) exchange_rate
+	where
+		pyrcontractno = 100000
+	) ty_gia
+on
+	abc_table1.caseno = ty_gia.caseno
+	
+left join
+(
+	select 
+		voucher.caseno,
+		voucher.coborder,
+		max (appayment.valuedate) 																															as Payment_date
+	from 
+	(
+		select 
+			caseno, 
+			coborder,
+			apvoucherno   
+		from 
+			abc_table8 
+		where 
+			apvchstatus = 'S'
+		) voucher
+		left join
+		(
+			select 
+				apvoucherno, 
+				appymtno 
+			from 
+				abc_table9 
+			where 
+				trxstatus = 'P'
+			) appaymenttrx
+		on 
+			voucher.apvoucherno = appaymenttrx.apvoucherno
+		left join
+		(
+			select 
+				appymtno,
+				trunc (valuedate) as valuedate 
+			from 
+				abc_table10 
+			where 
+				pymtstatus = 'S'
+			) appayment
+		on 
+			appaymenttrx.appymtno = appayment.appymtno
+		group by 
+			caseno, 
+			coborder
+		) payment
+		on
+				claim.caseno = payment.caseno
+			and claim.coborder = payment.coborder
+
+		
+
+

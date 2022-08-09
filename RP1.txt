@@ -1,0 +1,663 @@
+select
+    abc_table1.caseno 																										as tpa_table1_no,
+    batchno 																												as tpa_batch_no,
+    extcaseref 																												as Insurer_table1_no,
+    patname 																												as Insured_name,
+    pyrpatcardno 																											as tpa_card_no,
+    gender.resdsc 																											as Insured_gender,
+    patid 																													as Insured_ID,
+    trunc (patbirthdate) 																									as Insured_date_of_birth,
+    member.age 																												as Insured_age,
+    relationship.resdsc 																									as Relationship,
+    mbrcardno 																												as Member_card_no,
+    mbrname 																												as Member_name,
+    trunc (pyrplaneffdate) 																									as Insured_effective_date,
+    trunc (pyrplanceasedate) 																								as Insured_expried_date,
+    pyrplancode 																											as Insurance_table3_code,
+    plan.planname 																											as Insurance_table3_name_eng,
+    plan.plannamealt 																										as Insurance_table3_name_vie,
+    abc_table1.policyanvyear 																								as Policy_anv_year,
+    abc_table1.policyno 																									as Policy_no,
+    memberstatus.resdsc 																									as Insured_status,
+    statename.statename 																									as Insured_adress,
+    abc_table1.emporgcode 																									as Subsidiary_code,
+    subsidiaryname.name 																									as Subsidiary_name_eng,
+    subsidiaryname.namealt 																									as Subsidiary_name_vie,
+    pyrcontractno 																											as tpa_contract_no,
+    casestatus.resdsc 																										as Case_status,
+    casestatusdetail.name 																									as Case_status_detail_eng,
+    casestatusdetail.namealt 																								as Case_status_detail_vie,    
+    submissiontype.resdsc 																									as Claim_submission_type,    
+    casesource.resdsc 																										as Case_source,
+    casetype.resdsc 																										as Case_type,
+    eventtype.resdsc 																										as Event_type,
+    eventsubtype.resdsc 																									as Event_sub_type,
+    abc_table9typesetup.name 																								as Claim_type_eng,
+	abc_table9typesetup.namealt 																							as Claim_type_vie,
+    trunc (accidentdate) 																									as Accident_date,
+    casedetail.Event_date,
+    casedetail.Discharge_date,
+    trunc (casecreatedtim) 																									as Case_creation_date,
+--    trunc (notifydate) as Insurer_received_date,
+    trunc (notifydate) 																										as tpa_received_date,
+--    trunc (intnotifydate) as tpa_received_date,
+    trunc (fnlinvrcvdt) 																									as Final_invoice_received_date_GL,
+    casedoc1.First_outstanding_document_sent_date,
+    casedoc1.Lastest_outstanding_document_sent_date,
+    casedoc1.Lastest_outstanding_document_received_date,
+    casedoc2.Full_document_received_date,
+    casedoc1.Verification_request_to_Insurer_sent_date,
+    casedoc1.Feedback_from_Insurer_received_date,
+    casedoc1.Verification_request_to_MP_sent_date,
+    casedoc1.Feedback_from_MP_received_date,
+    claim.Approved_table9_decision_date,
+    trunc (caserejecteddtim) 																								as Rejected_table9_decision_date,
+    claim.Approved_table9_settlement_sent_to_customer_date,
+    trunc (caserejsubmitdtim) 																								as Rejected_table9_settlement_sent_to_customer_date,
+    claim.Insured_confirmation_on_payment_date,
+    payment.Payment_date,
+    case when claim.Incurred_amount is not null then claim.Incurred_amount else abc_table1.totalbillamt end 				as Total_bill_amount,
+    claim.Payment_amount,    
+    casediagnosis.Diagnosis_code,
+    casediagnosis.Diagnosis_name,
+    casecreateby 																											as Case_created_by,
+    claim.Claim_decision_made_by,
+    caserejectedby 																											as Case_rejected_by,
+    claim. actclmowncpycd 																									as Processing_office,
+    claimresolution.Partial_rejected_reason,
+    caserejectedcode.resdsc 																								as Full_rejected_reason,
+    overduereason.name 																										as Overdue_reason_eng,
+    overduereason.namealt 																									as Overdue_reason_vie,
+    replace(replace(replace(billingnote, chr(10), ' '), chr(13), ' '), chr(9), ' ') 										as Billing_note,
+    
+    abc_table1.providercode 																								as Medical_provider_code,
+    medicalprovider.name 																									as Medical_provider_name_eng,
+    medicalprovider.namealt 																								as Medical_provider_name_vie,    
+    abc_table1.payorcode 																									as Insurer_code,
+    insurer.name 																											as Insurer_name_eng,
+    insurer.namealt 																										as Insurer_name_vie,   
+    broker.name 																											as Broker_name_eng,
+    broker.namealt 																											as Broker_name_vie,    
+    abc_table1.assignto 																									as Assign_to,
+    abc_table1.actownusrcd 																									as Account_owner,
+    paymenttype.resdsc 																										as Payment_type
+    
+from
+    abc_table1
+	
+-- lấy thông tin giới tính 
+   
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000280 
+        and lngcode = 'ENG'
+    ) gender
+on
+    abc_table1.patgender = gender.rescode
+
+-- lấy thông tin Mối quan hệ
+
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000250 
+        and lngcode = 'ENG'
+    ) relationship
+on
+    abc_table1.pyrpatreln = relationship.rescode
+
+-- lấy thông tin trạng thái hồ sơ
+
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000400 
+        and lngcode = 'ENG'
+    ) casestatus
+on
+    abc_table1.casestatus = casestatus.rescode
+
+-- lấy thông tin trạng thái hồ sơ chi tiết
+
+left join
+(
+    select 
+        stresoln,
+        name,
+        namealt
+    from 
+        abc_table2
+    ) casestatusdetail
+on
+    abc_table1.csestrsoln = casestatusdetail.stresoln
+
+-- lấy thông tin cách thức nộp hồ sơ
+    
+left join
+(
+    select 
+        rescode,
+        resdsc
+    from
+        abc_giainghia 
+    where 
+            resno = 13100430 
+        and lngcode = 'ENG'
+    ) submissiontype
+on
+    abc_table1.cseflercptmtd = submissiontype.rescode
+
+-- lấy thông tin loại hình khám
+    
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000410 
+        and lngcode = 'ENG'
+    ) casetype
+on
+    abc_table1.casetype = casetype.rescode
+
+-- lấy thông tin loại hình điều trị
+
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000430 
+        and lngcode = 'ENG'
+    ) eventtype
+on
+    abc_table1.eventtype = eventtype.rescode
+
+-- lấy thông tin loại hình điều trị chi tiết
+    
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000431 
+        and lngcode = 'ENG'
+    ) eventsubtype
+on
+    abc_table1.evtsubtyp = eventsubtype.rescode
+
+-- lấy thông tin lý do từ chối toàn bộ
+
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000490 
+        and lngcode = 'ENG'
+    ) caserejectedcode
+on
+    abc_table1.caserejectcode = caserejectedcode.rescode
+
+-- lấy thông tin loại hồ sơ (BL/hoàn trả)
+
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000920 
+        and lngcode = 'ENG'
+    ) casesource
+on
+    abc_table1.casesrc = casesource.rescode
+
+-- lấy thông tin tên chương trình bảo hiểm
+    
+left join
+(
+    select 
+        contractno,
+        plancode,
+        planname, 
+        plannamealt 
+    from 
+        abc_table3
+    ) plan
+on
+        abc_table1.pyrcontractno = plan.contractno
+    and abc_table1.pyrplancode = plan.plancode
+
+-- lấy thông tin tên đơn vị thành viên
+    
+left join 
+(
+    select 
+        clientcode, 
+        name, 
+        namealt 
+    from 
+        abc_table4
+    ) subsidiaryname
+on
+        abc_table1.emporgcode = subsidiaryname.clientcode
+
+-- lấy thông tin CSYT khám và điều trị
+        
+left join 
+(
+    select 
+        clientcode, 
+        name, 
+        namealt 
+    from 
+        abc_table4
+    ) medicalprovider
+on
+    abc_table1.providercode = medicalprovider.clientcode
+
+-- lấy tên công ty bảo hiểm
+    
+left join 
+(
+    select 
+        clientcode, 
+        name, 
+        namealt 
+    from 
+        abc_table4
+    ) insurer
+on
+    abc_table1.payorcode = insurer.clientcode
+
+-- lấy thông tin Môi giới
+
+left join
+(
+    select
+        contractno,
+        clientcode,
+        version,
+        policyno,
+        producercode
+    from
+        abc_table5
+    where
+        policyno is not null
+        
+    union
+    
+     select
+        contractno,
+        clientcode,
+        version,
+        policyno,
+        producercode
+    from
+        abc_table5h
+    where
+        policyno is not null
+    ) contractclient
+on
+        abc_table1.pyrcontractno = contractclient.contractno
+    and abc_table1.emporgcode = contractclient.clientcode
+    and abc_table1.policyanvyear = contractclient.version
+    and abc_table1.policyno = contractclient.policyno
+    
+left join
+(
+    select
+        clientcode,
+        name,
+        namealt
+    from
+        abc_table4
+    ) broker
+on
+    contractclient.producercode = broker.clientcode
+
+-- lấy thông tin ngày nhập/xuất viện
+
+left join
+(
+    select 
+        caseno, 
+        trunc (admissiondate) 																								as Event_date, 
+        trunc (dischargedate) 																								as Discharge_date
+    from 
+        abc_table6
+    ) casedetail
+on
+    abc_table1.caseno = casedetail.caseno
+
+-- lấy thông tin diagnosis
+
+left join
+(
+    select 
+        caseno, 
+        listagg (diagnosiscode, ';') within group (order by diagnosiscode) 													as Diagnosis_code,
+        listagg (case when cause is not null then cause else diagnosis end, ';') within group (order by diagnosis) 			as Diagnosis_name 
+    from 
+        abc_table7
+    group by
+        caseno
+    ) casediagnosis
+on
+    abc_table1.caseno = casediagnosis.caseno
+
+-- lấy các thông tin ngày gửi/nhận hồ sơ
+    
+left join
+(
+    select 
+        caseno,
+        min (case when doccode = 'CLRQPY' then trunc (docsentdate) else null end) 											as Verification_request_to_Insurer_sent_date,
+        max (case when doccode = 'CLRQPY' then trunc (docrecvddate) else null end) 											as Feedback_from_Insurer_received_date,                                                                    
+        min (case when doccode = 'CLRQMP' then trunc (docsentdate) else null end) 											as Verification_request_to_MP_sent_date,
+        max (case when doccode = 'CLRQMP' then trunc (docrecvddate) else null end) 											as Feedback_from_MP_received_date,                 
+        min (case when docstatus = 10 and docsentdate is not null then trunc (docsentdate) else null end) 					as First_outstanding_document_sent_date,
+        max (case when docstatus = 10 and docsentdate is not null then trunc (docsentdate) else null end) 					as Lastest_outstanding_document_sent_date,
+        max (case when docstatus = 40 and docsentdate is not null then trunc (docrecvddate) else null end) 					as Lastest_outstanding_document_received_date                                                           
+    from 
+        abc_table8
+    group by
+        caseno
+    ) casedoc1
+on
+    abc_table1.caseno = casedoc1.caseno
+        
+left join
+(
+    select 
+        caseno,
+        max (case when docstatus = 40 then trunc (docrecvddate) else null end) 												as Full_document_received_date                                                               
+    from 
+        abc_table8
+    where
+        caseno not in (select caseno from abc_table8 where docstatus = 10)
+    group by
+        caseno
+    ) casedoc2
+on
+    abc_table1.caseno = casedoc2.caseno
+
+-- lấy các thông tin liên quan đến trường claim
+
+left join
+(
+    select
+        caseno,
+        coborder,
+        claimtype,
+        actclmowncpycd,
+        trunc (decideddtim) 																								as Approved_table9_decision_date,
+        trunc (submitdtimprovider) 																							as Approved_table9_settlement_sent_to_customer_date,
+        trunc (receiveddtimrcpt) 																							as Insured_confirmation_on_payment_date,
+        incuramt 																											as Incurred_amount,
+        payableamt 																											as Payment_amount,
+        decidedby 																											as Claim_decision_made_by,
+        clmprcovrtmrsoln
+    from
+        abc_table9
+    where 
+        claimstatus = 'A'
+    ) claim
+on
+    abc_table1.caseno = claim.caseno
+
+-- lấy tên loại hình bồi thường
+
+left join
+    abc_table9typesetup
+on
+    claim.claimtype = abc_table9typesetup.claimtype
+
+-- lấy lý do giải quyết chậm
+
+left join
+(
+    select
+        stresoln,
+        name,
+        namealt
+    from
+        abc_table2
+    ) overduereason
+on
+    claim.clmprcovrtmrsoln = overduereason.stresoln
+
+-- lấy lý do từ chối 1 phần
+    
+left join
+(
+    select 
+        caseno, 
+        coborder, 
+        listagg (abc_table11.namealt, ';') within group (order by (abc_table11.namealt)) 									as Partial_rejected_reason
+    from 
+        abc_table10
+    left join
+        abc_table11
+    on 
+        abc_table10.resolution = abc_table11.resolution
+    group by 
+        caseno, coborder
+    ) claimresolution
+on
+        claim.caseno = claimresolution.caseno
+    and claim.coborder = claimresolution.coborder
+
+-- lấy loại hình thanh toán, ngày thanh toán
+    
+left join
+(
+    select 
+        voucher.caseno,
+        voucher.coborder,
+        appayment.paymode,
+        max (appayment.valuedate) 																							as Payment_date
+    from 
+    (
+        select 
+            caseno, 
+            coborder, 
+            apvoucherno   
+        from 
+            abc_table12 
+        where 
+            apvchstatus = 'S'
+        ) voucher
+        left join
+        (
+            select 
+                apvoucherno, 
+                appymtno 
+            from 
+                abc_table13 
+            where trxstatus = 'P'
+            ) appaymenttrx
+        on 
+            voucher.apvoucherno = appaymenttrx.apvoucherno
+        left join
+        (
+            select 
+                appymtno,
+                paymode,
+                trunc (valuedate) 																							as valuedate 
+            from 
+                abc_table14 
+            where 
+                pymtstatus = 'S'
+            ) appayment
+        on 
+            appaymenttrx.appymtno = appayment.appymtno
+        group by 
+            caseno, 
+            coborder,
+            appayment.paymode
+    ) payment
+on
+        claim.caseno = payment.caseno
+    and claim.coborder = payment.coborder
+
+left join
+(
+    select 
+        rescode, 
+        resdsc 
+    from 
+        abc_giainghia 
+    where 
+            resno = 13000690 
+        and lngcode = 'ENG'
+    ) paymenttype
+on
+    payment.paymode = paymenttype.rescode
+
+--  lấy tuổi, trạng thái của người được bảo hiểm
+
+left join
+(
+    select 
+        insured.cardno, 
+        insured.policyanvyear, 
+        insured.orgcode, 
+        insured.policyno, 
+        insured.age, 
+        insured.memberstatus 
+    from
+    (
+        select 
+            cardno,
+            version,
+            policyanvyear,
+            orgcode,
+            policyno,
+            age,
+            memberstatus
+        from 
+            abc_table15
+        union
+        select 
+            cardno,
+            version,
+            policyanvyear,
+            orgcode,
+            policyno,
+            age,
+            memberstatus
+        from 
+            abc_table15h
+        ) insured
+        inner join
+        (
+            select
+                cardno,
+                policyanvyear,
+                max (version) 																								as insured_version
+            from
+            (
+                select
+                    cardno,
+                    policyanvyear,
+                    version
+                from 
+                    abc_table15
+                union
+                select
+                    cardno,
+                    policyanvyear,
+                    version
+                from 
+                    abc_table15h
+                )
+            group by
+                cardno,
+                policyanvyear
+            ) insured2
+        on
+                insured.cardno = insured2.cardno
+            and insured.version = insured2.insured_version
+            and insured.policyanvyear = insured2.policyanvyear
+    ) member
+on
+        abc_table1.pyrpatcardno = member.cardno
+    and abc_table1.policyanvyear = member.policyanvyear
+    and abc_table1.emporgcode = member.orgcode
+    and abc_table1.policyno = member.policyno
+
+left join
+(
+    select
+        rescode,
+        resdsc    
+    from
+        abc_giainghia 
+    where 
+            resno = '13000240' 
+        and lngcode = 'ENG'
+    ) memberstatus
+on
+    member.memberstatus = memberstatus.rescode
+
+-- lấy địa chỉ người được bảo hiểm
+    
+left join
+(
+    select 
+        cardno, 
+        case when city is not null then city else state end 																as province_code
+    from 
+        abc_table16
+    ) province
+on
+    member.cardno = province.cardno
+    
+left join
+(
+    select
+        statecode,
+        statename,
+        statenamealt
+    from
+        abc_table17
+    ) statename
+on
+    province.province_code = statename.statecode
+
+where 
+        abc_table1.casestatus <> 'R'
+    and abc_table1.pyrcontractno = 1000
+    and abc_table1.policyanvyear = 100
